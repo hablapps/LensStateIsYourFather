@@ -1,2 +1,2 @@
 # coq-lens-state
-Lens, State is Your Father, I Have Evidence!
+Lens, State is your father... and I can prove it!
