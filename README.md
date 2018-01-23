@@ -82,10 +82,7 @@ are also known as `bind` and `return` in the folklore, respectively._
 The most popular instance of this typeclass is `State`, which is just a state transformation that produces additional output `A`:
 
 ```Scala
-case class State[S, A](runState: S => (A, S)) {
-  // Just a convenience method that will be helpful later
-  def execState(s: S): S = runState(s)._2
-}
+case class State[S, A](runState: S => (A, S))
 
 def stateMonadState[S] = new MonadState[S, State[S, ?]] {
   def get = State(s => (s, s))
@@ -120,16 +117,43 @@ show you a subpart of it, and we'll reference the rest of them.
 
 ### Informal Proof
 
+So, where should we start? Well, we want to check that `MonadState[A, State[S, ?]]`
+is just a lens. Thereby, it would be helpful if we could provide a function to
+evidence that mapping:
+
 ```Scala
-def update(s: S)(a: A) = execState(put(a))(s)
+def ms_2_ln[S, A](ms: MonadState[A, State[S, ?]]): Lens[S, A] =
+  Lens[S, A](
+    view = s => evalState(get)(s),
+    update = s => a => execState(put(a))(s))
 ```
+
+where `execState` and `evalState` are just convenience methods to simplify the
+implementation:
+
+```Scala
+def evalState[S, A](st: State[S, A])(s: S): A = st.runState(s)._1
+def execState[S, A](st: State[S, A])(s: S): S = st.runState(s)._2
+```
+
+However, we can't guarantee right now that the result of an invocation to
+`ms_2_ln` is a very well-behaved lens. In fact, we only know that this
+implementation compiles nicely! Our mission here consists on proving that the
+resulting lens is lawful. How can we state such an argument? Well, we don't
+start from scratch here, we are aware that `MonadState` holds some laws that we
+could use for this purpose.
+
+Before we dive in, we're going to narrow the scope of the proof, to make things
+simpler. Instead of showing the whole correspondence, we'll simply show the
+following subproof: for any `State S` instance of `MonadState` where `putPut`
+holds, we get a lens where `updateUpdate` holds. Here it's the proof:
 
 ```Scala
 > [0. update(update(s)(a1))(a2) => update(s)(a2)]
   update(update(s)(a1))(a2)
 = [1. def update]
   execState(put(a2))(execState(put(a1))(s))
-= [2. Lemma exec_exec_>>]
+= [2. Lemma execexec is >>]
   execState(put(a1) >> put(a2))(s)
 = [3. putPut (MonadState)]
   execState(put(a2))(s)
@@ -138,7 +162,89 @@ def update(s: S)(a: A) = execState(put(a))(s)
 ◻
 ```
 
+We start in *0* with an hypothesis `update(update(s)(a1))(a2)` and a goal
+`update(s)(a2)`. Given all the information in the context, that is `MonadState`
+laws and other information related to `State`, we should be able to reach that
+goal. The step *1* simply unfolds the definition of `update` that we provided in
+`ms_2_lens`. Now, in *2*, we assume a lemma *execexec is >>* (which we invite
+you to prove) which manifests that sequencing executions of two programs is the
+same as the single execution of the sequence of those programs. This leads to
+the step *3* where we can apply *putPut* smoothly. Finally, we simply apply the
+definition of `update` again in *4*, but this time in a reversed way, to reach
+our desired goal. We're done here!
+
+You can find the whole informal proof [here](LensStateIsYourFatherProof.md).
+Please, notice that this linked version uses pseudo-haskell notation, which is
+more standard in computer science publications.
+
 ### Coq Proof
+
+```Coq
+Record lens (S A : Type) := mkLens
+{ view : S -> A
+; update : S -> A -> S
+}.
+```
+
+```Coq
+Definition view_update {S A : Type} (ln : lens S A) : Prop :=
+  forall s, update _ _ ln s (view _ _ ln s) = s.
+
+Definition update_view {S A : Type} (ln : lens S A) : Prop :=
+  forall s a, view _ _ ln (update _ _ ln s a) = a.
+
+Definition update_update {S A : Type} (ln : lens S A) : Prop :=
+  forall s a1 a2, update _ _ ln (update _ _ ln s a1) a2 = update _ _ ln s a2.
+
+Definition very_well_behaved {S A : Type} (ln : lens S A) : Prop :=
+  view_update ln /\ update_view ln /\ update_update ln.
+```
+
+```Coq
+Class MonadState (A : Type) (m : Type -> Type) `{Monad m} : Type :=
+{ get : m A
+; put : A -> m unit
+}.
+```
+
+```Coq
+Class MonadStateLaws (A : Type) (m : Type -> Type) `{MonadState A m} : Type :=
+{ get_get : get >>= (fun s1 => get >>= (fun s2 => ret (s1, s2))) =
+            get >>= (fun s => ret (s, s))
+; get_put : get >>= put = ret tt
+; put_get : forall s, put s >> get = put s >> ret s
+; put_put : forall s1 s2, put s1 >> put s2 = put s2
+}.
+```
+
+```Coq
+Record state (S A : Type) := mkState
+{ runState : S -> A * S }.
+```
+
+```Coq
+Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
+{| view s := evalState get s
+;  update s a := execState (put a) s
+|}.
+```
+
+```Coq
+Theorem lens_state_is_your_father_forward :
+    forall {S A : Type} (ms : MonadState A (state S)),
+    @MonadStateLaws A (state S) _ ms -> very_well_behaved (ms_2_lens ms).
+Proof.
+  ...
+  unfold ms_2_lens.
+  ...
+  - (* update_update *)
+    rewrite -> execexec_is_gtgt.
+    now rewrite -> pp.
+Qed.
+```
+
+You can find the sources associated to the formal proof
+[here](LensStateIsYourFatherProof.v).
 
 ## 3. Conclusions
 

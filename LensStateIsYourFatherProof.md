@@ -3,9 +3,9 @@
 If we provide a `MonadState` instance with focus on `a` and `State s` as monadic
 effect, we are actually instantiating a `Lens s a`.
 
-## GIVEN
+## Given
 
-### Laws
+#### Laws
 
 `MonadState a (State s) { get :: State s a; set :: a -> State s () }` such that:
 * GetGet: `get >>= (a1 -> get >>= (a2 -> k (a1, a2))) = get >>= (a -> k (a, a))`
@@ -13,16 +13,16 @@ effect, we are actually instantiating a `Lens s a`.
 * PutGet: `put a >> get = put a >> return a`
 * PutPut: `put a1 >> put a2 = put a2`
 
-### And defs
+#### And defs
 
 ```haskell
 def view s = eval get s
 def update s a = exec (put a) s
 ```
 
-## THEN
+## Then
 
-### GetPut
+#### GetPut
 
 ```haskell
 > [update (view s) s => s]
@@ -52,7 +52,7 @@ def update s a = exec (put a) s
 ◻
 ```
 
-### PutGet
+#### PutGet
 
 ```haskell
 > [view (update a s) => a]
@@ -72,7 +72,7 @@ def update s a = exec (put a) s
 ◻
 ```
 
-### PutPut
+#### PutPut
 
 ```haskell
 > [update a2 (update a1 s) => update a2 s]
