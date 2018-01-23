@@ -46,7 +46,7 @@ Class MonadState (A : Type) (m : Type -> Type) `{Monad m} : Type :=
 (* Laws *)
 
 Class MonadStateLaws (A : Type) (m : Type -> Type) `{MonadState A m} : Type :=
-{ get_get : get >>= (fun s1 => get >>= (fun s2 => ret (s1, s2))) = 
+{ get_get : get >>= (fun s1 => get >>= (fun s2 => ret (s1, s2))) =
             get >>= (fun s => ret (s, s))
 ; get_put : get >>= put = ret tt
 ; put_get : forall s, put s >> get = put s >> ret s
@@ -138,7 +138,7 @@ Defined.
 
 (* Related theorems *)
 
-Lemma execexec_is_gtgt : forall {S A B} (s : S) (st1 : state S A) (st2 : state S B), 
+Lemma execexec_is_gtgt : forall {S A B} (s : S) (st1 : state S A) (st2 : state S B),
     execState st2 (execState st1 s) = execState (st1 >> st2) s.
 Proof.
   intros.
@@ -147,7 +147,7 @@ Proof.
   now destruct (runState S A st1 s).
 Qed.
 
-Lemma execeval_is_gtgt : forall {S A B} (s : S) (st1 : state S A) (st2 : state S B), 
+Lemma execeval_is_gtgt : forall {S A B} (s : S) (st1 : state S A) (st2 : state S B),
     evalState st2 (execState st1 s) = evalState (st1 >> st2) s.
 Proof.
   intros.
@@ -165,7 +165,7 @@ Proof.
   now destruct (runState S A st1 s).
 Qed.
 
-Lemma eval_aM_return : forall {S A X} (m : state S A) (s : S) (x : X), 
+Lemma eval_aM_return : forall {S A X} (m : state S A) (s : S) (x : X),
     evalState (m >> ret x) s = x.
 Proof.
   intros.
@@ -185,17 +185,16 @@ Record lens (S A : Type) := mkLens
 }.
 
 Definition view_update {S A : Type} (ln : lens S A) : Prop :=
-  forall (s : S), ln.(update S A) s (ln.(view S A) s) = s.
+  forall s, update _ _ ln s (view _ _ ln s) = s.
 
 Definition update_view {S A : Type} (ln : lens S A) : Prop :=
-  forall (s : S) (a : A), ln.(view S A) (ln.(update S A) s a) = a.
+  forall s a, view _ _ ln (update _ _ ln s a) = a.
 
 Definition update_update {S A : Type} (ln : lens S A) : Prop :=
-  forall (s : S) (a1 : A) (a2 : A),
-    ln.(update S A) (ln.(update S A) s a1) a2 = ln.(update S A) s a2.
+  forall s a1 a2, update _ _ ln (update _ _ ln s a1) a2 = update _ _ ln s a2.
 
 Definition very_well_behaved {S A : Type} (ln : lens S A) : Prop :=
-view_update ln /\ update_view ln /\ update_update ln.
+  view_update ln /\ update_view ln /\ update_update ln.
 
 
 (***************************************)
@@ -223,7 +222,7 @@ Theorem lens_state_is_your_father :
 Proof.
   intros.
   pose proof (@non_eff_get (state S) A _ ms H _) as non_eff.
-  unfold very_well_behaved. 
+  unfold very_well_behaved.
   unfold view_update; unfold update_view; unfold update_update.
   unfold ms_2_lens.
   destruct H as [gg gp pg pp].
