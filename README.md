@@ -280,6 +280,38 @@ You can find the sources associated to the formal proof
 
 ## 3. Conclusions
 
-Stateless paragraph
+Ok, I buy it, `MonadState A (state S)` is a `lens S A`. *So what?* As I said
+previously, "Lens, State Is Your Father" was the starting point of
+[*Stateless*](https://github.com/hablapps/stateless), a library that we are
+currently working on. In this library, we try to take optics [beyond immutable
+data
+structures](https://skillsmatter.com/skillscasts/11214-llghtning-talk-optic-algebras-beyond-immutable-data-structures).
+Particularly, we want to take the awesome algebra and design patterns from
+optics (Lens, Optional, Traversal, etc.) to more general contexts, such as
+databases or microservices. We can't do so with lenses, which are restricted to
+in-memory data structures, but `MonadState`, containing the algebraic essence of
+a lens, opens up these new possibilities, including, but not restricted to
+immutable data structures.
 
-Coq paragraph
+We've found it essential to prove that the foundations of Stateless are solid.
+However, it was becoming quite annoying to do this task, as proofs were becoming
+more complex. This situation inevitably led us to leap of faiths, you know,
+everything compiles with pen and paper. That's why we decided to jump into a
+proof assistant. Honestly, learning Coq will blow your mind, because it's such a
+different beast (although [exactly the
+same](https://softwarefoundations.cis.upenn.edu/lf-current/ProofObjects.html) at
+the end), but you start to be more confident after one fully immersed week (I
+recommend to follow [the dark arrow
+itinerary](https://softwarefoundations.cis.upenn.edu/lf-current/deps.html) from
+*Logical Foundations*). In my case, it totally worth it, since there's no room
+for leap of faiths any more.
+
+Proof assistants are the natural step towards more reliable systems. Given the
+nowadays society demands, unit testing is becoming completely obsolete. In this
+regard, property based testing is a nice alternative, but we can do better. If
+we can prove our software, there's no need for additional tests. It's correct.
+Period. Proof assistants are still very academic and they're not necessarily
+focused on functional programming, but dependent type languages like Idris are
+starting to emerge and [they enable such
+capabilities](http://docs.idris-lang.org/en/latest/tutorial/theorems.html). And
+here's a new claim that I hope to prove in the future: they're here to stay!
