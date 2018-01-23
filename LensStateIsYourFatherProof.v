@@ -174,6 +174,14 @@ Proof.
   now destruct (runState S A m s).
 Qed.
 
+(* XXX: This has to be standard somehow... *)
+Theorem unwrap_runState : forall {S A : Type} (f g : S -> A * S),
+    f = g -> mkState S A f = mkState S A g.
+Proof.
+  intros.
+  now rewrite H.
+Qed.
+
 
 (***********)
 (** * Lens *)
@@ -205,9 +213,9 @@ Definition very_well_behaved {S A : Type} (ln : lens S A) : Prop :=
 
 (* Notice that the forward arrow (iso) is a typeclass instance that depends on a lens! *)
 Instance lens_2_ms {S A : Type} (ln : lens S A) : MonadState A (state S) :=
-{| get := mkState _ _ (fun s => (view _ _ ln s, s))
- ; put a := mkState _ _ (fun s => (tt, update _ _ ln s a))
-|}.
+{ get := mkState S A (fun s => (view S A ln s, s))
+; put a := mkState S unit (fun s => (tt, update S A ln s a))
+}.
 
 Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
 {| view s := evalState get s
@@ -216,7 +224,7 @@ Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
 
 (* Proving that any lawful [MonadState A (state S)] corresponds with a very well-behaved lens *)
 
-Theorem lens_state_is_your_father :
+Theorem lens_state_is_your_father_forward :
     forall {S A : Type} (ms : MonadState A (state S)),
     @MonadStateLaws A (state S) _ ms -> very_well_behaved (ms_2_lens ms).
 Proof.
@@ -242,4 +250,26 @@ Proof.
   - (* update_update *)
     rewrite -> execexec_is_gtgt.
     now rewrite -> pp.
+Qed.
+
+(* and viceversa *)
+
+Theorem lens_state_is_your_father_backward :
+    forall {S A : Type} (ln : lens S A),
+    very_well_behaved ln -> @MonadStateLaws A (state S) _ (lens_2_ms ln).
+Proof.
+  unfold very_well_behaved.
+  unfold view_update. unfold update_view. unfold update_update.
+  intros.
+  destruct H as [vu [uv uu]].
+  constructor;
+    unfold get; unfold put; 
+    unfold lens_2_ms; 
+    simpl;
+    intros;
+    apply unwrap_runState;
+    apply functional_extensionality;
+    intros;
+    [| rewrite vu | rewrite uv | rewrite uu];
+    reflexivity.   
 Qed.

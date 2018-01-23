@@ -43,7 +43,7 @@ that a lens must hold to be considered very well-behaved:
 ```scala
 viewUpdate:   update(s)(view(s)) = s
 updateView:   view(update(s)(a)) = a
-updateUpdate: update(update(s)(a1))(a2) == update(s)(a2)
+updateUpdate: update(update(s)(a1))(a2) = update(s)(a2)
 ```
 
 So, a very well-behaved lens is any instance of `Lens` whose `view` and `update`
@@ -77,7 +77,7 @@ putPut: put a1 >> put a2 = put a2
 ```
 
 _(*) Notice that `>>=` and `point` correspond with the `Monad` methods, which
-are also known as `bind` and `return`, respectively._
+are also known as `bind` and `return` in the folklore, respectively._
 
 The most popular instance of this typeclass is `State`, which is just a state transformation that produces additional output `A`:
 
@@ -103,8 +103,9 @@ representing a lens:
 type MSLens[S, A] = MonadState[A, State[S, ?]]
 ```
 
-In the next section, we will prove it right, both informally and formally. We'll
-state why this connection is important to us in the concluding section.
+In the next section, we will prove it right, both informally and formally.
+Later, we'll argue why this connection is important to us in the concluding
+section.
 
 ## 2. Proof
 
