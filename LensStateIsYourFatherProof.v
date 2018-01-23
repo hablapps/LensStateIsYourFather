@@ -271,3 +271,18 @@ Proof.
     [| rewrite vu | rewrite uv | rewrite uu];
     reflexivity.
 Qed.
+
+(* Subproof to be shown in the post *)
+Theorem putput_leads_to_updateupdate :
+    forall {S A : Type} (ms : MonadState A (state S)),
+    (forall a1 a2, put a1 >> put a2 = put a2) -> update_update (ms_2_lens ms).
+Proof.
+  intros.
+  rename H into putPut.
+  unfold update_update.
+  unfold ms_2_lens.
+  simpl.
+  intros.
+  rewrite -> execexec_is_gtgt.
+  now rewrite -> putPut.
+Qed.

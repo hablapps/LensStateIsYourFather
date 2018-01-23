@@ -107,7 +107,7 @@ In the next section, we will prove it right, both informally and formally.
 Later, in the concluding section, we'll argue why this connection is important
 to us.
 
-## 2. Proof
+## 2. Proof of Paternity
 
 Now, it's time for us to prove our claim! Remember, we want to assert that any
 instance of `MonadState` with `State` is just a lens. Firstly, we'll do it
@@ -179,6 +179,10 @@ more standard in computer science publications.
 
 ### Coq Proof
 
+I'm sure you've heard that Coq is a proof assistant but, did you know that it's
+also a purely functional language? A very nice one indeed, which comes equipped
+with dependent types. Thereby, it's possible to define a lens easily:
+
 ```Coq
 Record lens (S A : Type) := mkLens
 { view : S -> A
@@ -186,19 +190,18 @@ Record lens (S A : Type) := mkLens
 }.
 ```
 
+Now, we're going to encode *putPut* in Coq. You don't have to understand the
+details, I just want you to see that this definitions takes a lens as an
+argument and returns a law (or *proposition*) over it:
+
 ```Coq
-Definition view_update {S A : Type} (ln : lens S A) : Prop :=
-  forall s, update _ _ ln s (view _ _ ln s) = s.
-
-Definition update_view {S A : Type} (ln : lens S A) : Prop :=
-  forall s a, view _ _ ln (update _ _ ln s a) = a.
-
 Definition update_update {S A : Type} (ln : lens S A) : Prop :=
   forall s a1 a2, update _ _ ln (update _ _ ln s a1) a2 = update _ _ ln s a2.
-
-Definition very_well_behaved {S A : Type} (ln : lens S A) : Prop :=
-  view_update ln /\ update_view ln /\ update_update ln.
 ```
+
+Being a functional language as it is, Coq also enables typeclass definitions.
+This is how we represent a `MonadState`. I invite you to come back to the Scala
+definition to spot the differences between them:
 
 ```Coq
 Class MonadState (A : Type) (m : Type -> Type) `{Monad m} : Type :=
@@ -206,6 +209,12 @@ Class MonadState (A : Type) (m : Type -> Type) `{Monad m} : Type :=
 ; put : A -> m unit
 }.
 ```
+
+What comes next is quite interesting. We encode the laws of a typeclass in
+another class that depends on the original one. In this sense, we should provide
+not only an instance of the main typeclass but also an instance of its
+associated laws, where we prove that the laws of the main instance hold. I found
+this way of encoding laws particularly cool:
 
 ```Coq
 Class MonadStateLaws (A : Type) (m : Type -> Type) `{MonadState A m} : Type :=
@@ -217,10 +226,15 @@ Class MonadStateLaws (A : Type) (m : Type -> Type) `{MonadState A m} : Type :=
 }.
 ```
 
+Defining `state` turns out to be straightforward:
+
 ```Coq
 Record state (S A : Type) := mkState
 { runState : S -> A * S }.
 ```
+
+Now, we can write the function that maps any `MonadState A (state S)` into a
+`lens S A`, which we'll use in our proof.
 
 ```Coq
 Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
@@ -229,19 +243,37 @@ Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
 |}.
 ```
 
+And finally here it's the proof:
+
 ```Coq
-Theorem lens_state_is_your_father_forward :
+Theorem putput_leads_to_updateupdate :
     forall {S A : Type} (ms : MonadState A (state S)),
-    @MonadStateLaws A (state S) _ ms -> very_well_behaved (ms_2_lens ms).
+    (forall a1 a2, put a1 >> put a2 = put a2) -> update_update (ms_2_lens ms).
 Proof.
-  ...
+  intros.
+  rename H into putPut.
+  unfold update_update.
   unfold ms_2_lens.
-  ...
-  - (* update_update *)
-    rewrite -> execexec_is_gtgt.
-    now rewrite -> pp.
+  simpl.
+  intros.
+  rewrite -> execexec_is_gtgt.
+  now rewrite -> putPut.
 Qed.
 ```
+
+The header of the proof (from `Theorem` to `Proof`) can be read as: the theorem
+*putput_leads_to_updateupdate* proves that for any `ms` belonging to `MonadState
+A (state S)`, if `ms` holds *putPut* then `ms_2_lens ms` must hold
+*update_update*.
+
+After `Proof` we use the tactics language to prove such a proposition. Again,
+you don't have to understand the code, but you could see some counterparts from
+the informal proof. Particularly, the `unfold` is quite similar to the expansion
+of definitions (step *1* in the informal proof), `rewrite -> execexec_is_gtgt`
+corresponds directly with the lemma in step *2* and `rewrite -> putPut` is
+exactly the step *3*. The final `Qed` (*quod erat demonstrandum*) evidences the
+positive Dna test result that we were searching for. As a consequence, we can
+conclude that `State` is the father of `Lens`. ;)
 
 You can find the sources associated to the formal proof
 [here](LensStateIsYourFatherProof.v).
