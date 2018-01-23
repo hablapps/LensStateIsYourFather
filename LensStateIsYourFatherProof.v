@@ -209,21 +209,20 @@ Definition very_well_behaved {S A : Type} (ln : lens S A) : Prop :=
 (** * Lens, State Is Your Father Proof *)
 (***************************************)
 
-(* Isomorphism [lens S A <-> MonadState A (state S)] *)
-
-(* Notice that the forward arrow (iso) is a typeclass instance that depends on a lens! *)
-Instance lens_2_ms {S A : Type} (ln : lens S A) : MonadState A (state S) :=
-{ get := mkState S A (fun s => (view S A ln s, s))
-; put a := mkState S unit (fun s => (tt, update S A ln s a))
-}.
+(* Isomorphism [MonadState A (state S) <-> lens S A] *)
 
 Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
 {| view s := evalState get s
 ;  update s a := execState (put a) s
 |}.
 
-(* Proving that any lawful [MonadState A (state S)] corresponds with a very well-behaved lens *)
+(* Notice that the backwards arrow (iso) is a typeclass instance that depends on a lens! *)
+Instance lens_2_ms {S A : Type} (ln : lens S A) : MonadState A (state S) :=
+{ get := mkState S A (fun s => (view S A ln s, s))
+; put a := mkState S unit (fun s => (tt, update S A ln s a))
+}.
 
+(* Proving that any lawful [MonadState A (state S)] corresponds with a very well-behaved lens *)
 Theorem lens_state_is_your_father_forward :
     forall {S A : Type} (ms : MonadState A (state S)),
     @MonadStateLaws A (state S) _ ms -> very_well_behaved (ms_2_lens ms).
@@ -252,8 +251,7 @@ Proof.
     now rewrite -> pp.
 Qed.
 
-(* and viceversa *)
-
+(* and backwards *)
 Theorem lens_state_is_your_father_backward :
     forall {S A : Type} (ln : lens S A),
     very_well_behaved ln -> @MonadStateLaws A (state S) _ (lens_2_ms ln).
@@ -263,13 +261,13 @@ Proof.
   intros.
   destruct H as [vu [uv uu]].
   constructor;
-    unfold get; unfold put; 
-    unfold lens_2_ms; 
+    unfold get; unfold put;
+    unfold lens_2_ms;
     simpl;
     intros;
     apply unwrap_runState;
     apply functional_extensionality;
     intros;
     [| rewrite vu | rewrite uv | rewrite uu];
-    reflexivity.   
+    reflexivity.
 Qed.

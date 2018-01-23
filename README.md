@@ -26,7 +26,7 @@ methods, since they correspond with the notion of *getter* and *setter*,
 respectively. However, to avoid name conflicts with other definitions, we'll
 refer to them as `view` and `update`. We can encode a lens in Scala as follows:
 
-```scala
+```Scala
 case class Lens[S, A](
   view: S => A,
   update: S => A => S)
@@ -40,7 +40,7 @@ structures](http://julien-truffaut.github.io/Monocle/optics/lens.html), but we
 won't go further down that road today. Instead, we'll focus on the properties
 that a lens must hold to be considered very well-behaved:
 
-```scala
+```Scala
 viewUpdate:   update(s)(view(s)) = s
 updateView:   view(update(s)(a)) = a
 updateUpdate: update(update(s)(a1))(a2) = update(s)(a2)
@@ -58,7 +58,7 @@ version. We'll be using the terms *get* and *put* to refer to these new methods.
 Having said so, this is how we encode this typeclass in Scala (where `A`
 corresponds with the type of the inner state):
 
-```scala
+```Scala
 trait MonadState[A, M[_]] extends Monad[M] {
   def get: M[A]
   def put: A => M[Unit]
@@ -68,7 +68,7 @@ trait MonadState[A, M[_]] extends Monad[M] {
 As usual, this typeclass comes along with some properties that any instance
 should satisfy. We show them here:
 
-```scala
+```Scala
 getGet: get >>= (a1 => get >>= (a2 => point((a1, a2)))) =
         get >>= (a => point((a, a)))
 getPut: get >>= put = point(())
@@ -81,8 +81,11 @@ are also known as `bind` and `return` in the folklore, respectively._
 
 The most popular instance of this typeclass is `State`, which is just a state transformation that produces additional output `A`:
 
-```scala
-case class State[S, A](runState: S => (A, S))
+```Scala
+case class State[S, A](runState: S => (A, S)) {
+  // Just a convenience method that will be helpful later
+  def execState(s: S): S = runState(s)._2
+}
 
 def stateMonadState[S] = new MonadState[S, State[S, ?]] {
   def get = State(s => (s, s))
@@ -99,17 +102,41 @@ find out that `MonadState` generalises a lens. Indeed, we suggested that
 instantiating `MonadState` sith `State` is just an alternative way of
 representing a lens:
 
-```scala
+```Scala
 type MSLens[S, A] = MonadState[A, State[S, ?]]
 ```
 
 In the next section, we will prove it right, both informally and formally.
-Later, we'll argue why this connection is important to us in the concluding
-section.
+Later, in the concluding section, we'll argue why this connection is important
+to us.
 
 ## 2. Proof
 
+Now, it's time for us to prove our claim! Remember, we want to assert that any
+instance of `MonadState` with `State` is just a lens. Firstly, we'll do it
+informally, old school style, though using a pseudo-scala notation. Then, we'll
+formalise it with Coq. Since the proof would take too much writing, we'll just
+show you a subpart of it, and we'll reference the rest of them.
+
 ### Informal Proof
+
+```Scala
+def update(s: S)(a: A) = execState(put(a))(s)
+```
+
+```Scala
+> [0. update(update(s)(a1))(a2) => update(s)(a2)]
+  update(update(s)(a1))(a2)
+= [1. def update]
+  execState(put(a2))(execState(put(a1))(s))
+= [2. Lemma exec_exec_>>]
+  execState(put(a1) >> put(a2))(s)
+= [3. putPut (MonadState)]
+  execState(put(a2))(s)
+= [4. def update]
+  update(s)(a2)
+◻
+```
 
 ### Coq Proof
 
