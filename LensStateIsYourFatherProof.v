@@ -102,28 +102,27 @@ Instance Monad_state {S : Type} : Monad (state S) :=
 Instance MonadLaws_state {S : Type} : MonadLaws (state S).
 Proof.
   constructor; intros; simpl.
+  - (* left_id *)
+    now destruct f.
 
-  (* left_id *)
-  now destruct f.
+  - (* right_id *)
+    destruct aM as [rs].
+    unfold runState.
+    assert (H : (fun (s0 : S) => let (a, s1) := rs s0 in (a, s1)) = rs).
+    { apply functional_extensionality. intros. simpl. now destruct (rs x). }
+    now rewrite -> H.
 
-  (* right_id *)
-  destruct aM as [rs].
-  unfold runState.
-  assert (H : (fun (s0 : S) => let (a, s1) := rs s0 in (a, s1)) = rs).
-  { apply functional_extensionality. intros. simpl. now destruct (rs x). }
-  now rewrite -> H.
-
-  (* assoc *)
-  destruct aM as [rs].
-  simpl.
-  assert (H : (fun s0 : S =>
-                 let (a, s1) := let (a, s1) := rs s0 in runState S B (f a) s1 in
-                 runState S C (g a) s1) =
-              (fun s0 : S =>
-                 let (a, s1) := rs s0 in
-                  let (a0, s2) := runState S B (f a) s1 in runState S C (g a0) s2)).
-  { apply functional_extensionality. intros. now destruct (rs x). }
-  now rewrite -> H.
+  - (* assoc *)
+    destruct aM as [rs].
+    simpl.
+    assert (H : (fun s0 : S =>
+                   let (a, s1) := let (a, s1) := rs s0 in runState S B (f a) s1 in
+                   runState S C (g a) s1) =
+                (fun s0 : S =>
+                   let (a, s1) := rs s0 in
+                    let (a0, s2) := runState S B (f a) s1 in runState S C (g a0) s2)).
+    { apply functional_extensionality. intros. now destruct (rs x). }
+    now rewrite -> H.
 Defined.
 
 Instance MonadState_state {S : Type} : MonadState S (state S) :=
