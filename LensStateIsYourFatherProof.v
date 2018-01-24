@@ -99,30 +99,23 @@ Instance Monad_state {S : Type} : Monad (state S) :=
                                                 in runState _ _ (f a) s1)
 }.
 
+Ltac reason :=
+  (* this tactic contains the easy reasoning steps that suffice
+     to prove the intermediary lemmas *)
+  match goal with
+  | [ |- context [runState _]] => unfold runState
+  | [ |- context [execState] ] => unfold execState
+  | [ |- context [evalState] ] => unfold evalState
+  | [ |- {| runState := _ |} = {| runState := _ |} ] => f_equal
+  | [ |- (fun _ => _) = _ ] => apply functional_extensionality; intros
+  | [ |- {| runState := _ |} = ?x ] => destruct x as [rs]
+  | [ s : state S _ |- _ ] => destruct s as [rs]
+  | [ |- context [ let (_, _) := ?rs ?x in _ ] ] => destruct (rs x)
+  end; simpl; auto.
+
 Instance MonadLaws_state {S : Type} : MonadLaws (state S).
 Proof.
-  constructor; intros; simpl.
-  - (* left_id *)
-    now destruct f.
-
-  - (* right_id *)
-    destruct aM as [rs].
-    unfold runState.
-    assert (H : (fun (s0 : S) => let (a, s1) := rs s0 in (a, s1)) = rs).
-    { apply functional_extensionality. intros. simpl. now destruct (rs x). }
-    now rewrite -> H.
-
-  - (* assoc *)
-    destruct aM as [rs].
-    simpl.
-    assert (H : (fun s0 : S =>
-                   let (a, s1) := let (a, s1) := rs s0 in runState S B (f a) s1 in
-                   runState S C (g a) s1) =
-                (fun s0 : S =>
-                   let (a, s1) := rs s0 in
-                    let (a0, s2) := runState S B (f a) s1 in runState S C (g a0) s2)).
-    { apply functional_extensionality. intros. now destruct (rs x). }
-    now rewrite -> H.
+  constructor; intros; simpl; repeat reason.
 Defined.
 
 Instance MonadState_state {S : Type} : MonadState S (state S) :=
@@ -140,37 +133,25 @@ Defined.
 Lemma execexec_is_gtgt : forall {S A B} (s : S) (st1 : state S A) (st2 : state S B),
     execState st2 (execState st1 s) = execState (st1 >> st2) s.
 Proof.
-  intros.
-  unfold execState.
-  simpl.
-  now destruct (runState S A st1 s).
+  intros. repeat reason.
 Qed.
 
 Lemma execeval_is_gtgt : forall {S A B} (s : S) (st1 : state S A) (st2 : state S B),
     evalState st2 (execState st1 s) = evalState (st1 >> st2) s.
 Proof.
-  intros.
-  unfold execState.
-  unfold evalState.
-  simpl.
-  now destruct (runState S A st1 s).
+  intros. repeat reason.
 Qed.
 
 Lemma execeval_is_bind : forall {S A B} (s : S) (st1 : state S A) (f : A -> state S B),
     execState (f (evalState st1 s)) (execState st1 s) = execState (st1 >>= f) s.
 Proof.
-  intros.
-  unfold evalState. unfold execState. simpl.
-  now destruct (runState S A st1 s).
+  intros. repeat reason.
 Qed.
 
 Lemma eval_aM_return : forall {S A X} (m : state S A) (s : S) (x : X),
     evalState (m >> ret x) s = x.
 Proof.
-  intros.
-  unfold evalState.
-  simpl.
-  now destruct (runState S A m s).
+  intros. repeat reason.
 Qed.
 
 (* XXX: This has to be standard somehow... *)
