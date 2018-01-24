@@ -84,19 +84,21 @@ Qed.
 
 Record state (S A : Type) := mkState
 { runState : S -> A * S }.
+Arguments mkState [S A].
+Arguments runState [S A].
 
 Definition evalState {S A : Type} (st : state S A) (s : S) : A :=
-  fst (runState _ _ st s).
+  fst (runState st s).
 
 Definition execState {S A : Type} (st : state S A) (s : S) : S :=
-  snd (runState _ _ st s).
+  snd (runState st s).
 
 (* Typeclass instances *)
 
 Instance Monad_state {S : Type} : Monad (state S) :=
-{ ret := fun A a => mkState _ _ (fun s => (a, s))
-; bind := fun A B m f => mkState _ _ (fun s0 => let (a, s1) := runState _ _ m s0
-                                                in runState _ _ (f a) s1)
+{ ret := fun A a => mkState (fun s => (a, s))
+; bind := fun A B m f => mkState (fun s0 => let (a, s1) := runState m s0
+                                                in runState (f a) s1)
 }.
 
 Ltac reason :=
@@ -119,8 +121,8 @@ Proof.
 Defined.
 
 Instance MonadState_state {S : Type} : MonadState S (state S) :=
-{ get := mkState _ _ (fun s => (s, s))
-; put := fun s => mkState _ _ (fun _ => (tt, s))
+{ get := mkState (fun s => (s, s))
+; put := fun s => mkState (fun _ => (tt, s))
 }.
 
 Instance MonadStateLaws_state {S : Type} : MonadStateLaws S (state S).
@@ -156,7 +158,7 @@ Qed.
 
 (* XXX: This has to be standard somehow... *)
 Theorem unwrap_runState : forall {S A : Type} (f g : S -> A * S),
-    f = g -> mkState S A f = mkState S A g.
+    f = g -> mkState f = mkState g.
 Proof.
   intros.
   now rewrite H.
@@ -171,15 +173,18 @@ Record lens (S A : Type) := mkLens
 { view : S -> A
 ; update : S -> A -> S
 }.
+Arguments mkLens [S A].
+Arguments view [S A].
+Arguments update [S A].
 
 Definition view_update {S A : Type} (ln : lens S A) : Prop :=
-  forall s, update _ _ ln s (view _ _ ln s) = s.
+  forall s, update ln s (view ln s) = s.
 
 Definition update_view {S A : Type} (ln : lens S A) : Prop :=
-  forall s a, view _ _ ln (update _ _ ln s a) = a.
+  forall s a, view ln (update ln s a) = a.
 
 Definition update_update {S A : Type} (ln : lens S A) : Prop :=
-  forall s a1 a2, update _ _ ln (update _ _ ln s a1) a2 = update _ _ ln s a2.
+  forall s a1 a2, update ln (update ln s a1) a2 = update ln s a2.
 
 Definition very_well_behaved {S A : Type} (ln : lens S A) : Prop :=
   view_update ln /\ update_view ln /\ update_update ln.
@@ -198,8 +203,8 @@ Definition ms_2_lens {S A : Type} (ms : MonadState A (state S)) : lens S A :=
 
 (* Notice that the backwards arrow (iso) is a typeclass instance that depends on a lens! *)
 Instance lens_2_ms {S A : Type} (ln : lens S A) : MonadState A (state S) :=
-{ get := mkState S A (fun s => (view S A ln s, s))
-; put a := mkState S unit (fun s => (tt, update S A ln s a))
+{ get := mkState (fun s => (view ln s, s))
+; put a := mkState (fun s => (tt, update ln s a))
 }.
 
 (* Proving that any lawful [MonadState A (state S)] corresponds with a very well-behaved lens *)
