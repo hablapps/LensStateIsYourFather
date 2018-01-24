@@ -8,7 +8,7 @@ seeds of [Stateless](https://github.com/hablapps/stateless), the Scala library
 that we are currently working on. The post left some questions opened, which
 we'll try to address today. Particularly, we have set two goals:
 
-* Proving the major claim from the original post: `MonadState[A, State[S, ?]]` is yet another `Lens[S, A]` definition.
+* Proving the major claim from the original post: `MonadState[A, State[S, ?]]` is yet another `Lens[S, A]` definition (besides concrete, van laarhoven, [profunctor](https://github.com/hablapps/DontFearTheProfunctorOptics), etc.).
 * Contextualizing the relevance of a proof assistant like [Coq](https://coq.inria.fr/) in functional programming.
 
 **It doesn't matter if you haven't read the previous post**, we'll help you to
@@ -23,7 +23,7 @@ bring those connections back.
 A lens is just a pair of methods packed together, one of them to *get* a part
 from a bigger whole and another one to *put* a new version of the part in an old
 whole, returning a new whole. We, as programmers, are very familiar with those
-methods, since they correspond with the notion of *getter* and *setter*,
+methods, since they correspond with the notions of *getter* and *setter*,
 respectively. However, to avoid name conflicts with other definitions, we'll
 refer to them as `view` and `update`. We can encode a lens in Scala as follows:
 
@@ -43,9 +43,9 @@ that a lens must hold to be considered [very
 well-behaved](http://sebfisch.github.io/research/pub/Fischer+MPC15.pdf):
 
 ```Scala
-viewUpdate:   update(s)(view(s)) = s
-updateView:   view(update(s)(a)) = a
-updateUpdate: update(update(s)(a1))(a2) = update(s)(a2)
+law viewUpdate:   update(s)(view(s)) = s
+law updateView:   view(update(s)(a)) = a
+law updateUpdate: update(update(s)(a1))(a2) = update(s)(a2)
 ```
 
 So, a very well-behaved lens is any instance of `Lens` whose `view` and `update`
@@ -57,8 +57,8 @@ that classifies all those effects which are able to access and manipulate an
 inner state which in turn, might be contextualized within a bigger one.
 `MonadState` supplies a pair of methods, the first of them to get the current
 inner state and the second one to replace it with another one, taken as
-argument. We'll be using the terms *get* and *put* to refer to these new
-methods. Having said so, this is how we encode this typeclass in Scala:
+argument. We'll be using the terms *get* and *put* to refer to these methods.
+Having said so, this is how we encode this typeclass in Scala:
 
 ```Scala
 trait MonadState[A, M[_]] extends Monad[M] {
@@ -67,24 +67,24 @@ trait MonadState[A, M[_]] extends Monad[M] {
 }
 ```
 
-As we can see, `A` refers to the inner state and the effect `M` provides the
-means for accessing and manipulating it. Whether `A` conforms the whole state or
-it's just a part of it, it's something that is hidden by `M`, beyond our
-vision at this point.
+As we can see, `A` refers to the inner state and the effect `M` provides the way
+to access and manipulate it. Whether `A` roles the whole state or it's just a
+part of it, it's something that is hidden by `M`, beyond our vision at this
+point.
 
 As usual, this typeclass comes along with some laws that any instance should
 satisfy. We show them here:
 
 ```Scala
-getGet: get >>= (a1 => get >>= (a2 => point((a1, a2)))) =
-        get >>= (a => point((a, a)))
-getPut: get >>= put = point(())
-putGet: put a >>= get = put a >>= point(a)
-putPut: put a1 >> put a2 = put a2
+law getGet: get >>= (a1 => get >>= (a2 => point((a1, a2)))) =
+            get >>= (a => point((a, a)))
+law getPut: get >>= put = point(())
+law putGet: put a >>= get = put a >>= point(a)
+law putPut: put a1 >> put a2 = put a2
 ```
 
-_(*) Notice that `>>=` and `point` correspond with the `Monad` methods, which
-are also known as `bind` and `return` in the folklore, respectively._
+_(*) Notice that `>>=` and `point` are the `Monad` methods, which are also known
+as `bind` and `return`, respectively._
 
 The most popular instance of this typeclass is `MonadState[S, State[S, ?]]`,
 which is just a state transformation that also produces an additional output
@@ -144,9 +144,12 @@ def ln_2_ms[S, A](ln: Lens[S, A]): MSLens[S, A] =
   }
 ```
 
-In the next section, we will prove it right, both informally and formally (via
-Coq). Later, in the concluding section, we'll argue why this proof is so
-important to us.
+Right now, we can't guarantee that the result of an invocation to `ms_2_ln`
+yields a very well-behaved lens. Indeed, the only fact that we can say about
+this definition is that it compiles (and that's saying a lot). Thereby, our
+mission consists on proving that the resulting lens is lawful. We'll do so in
+the next section. Later, in the concluding section, we'll argue why this proof
+is so important to us.
 
 ## 2. Proof of Paternity
 
@@ -158,16 +161,11 @@ it, and we'll link the rest of them, just in case you are interested.
 
 ### Informal Proof
 
-Right now, we can't guarantee that the result of an invocation to `ms_2_ln`
-yields a very well-behaved lens. Indeed, the only fact that we can say about
-this definition is that it compiles (and that's saying a lot). Thereby, our
-mission consists on proving that the resulting lens is lawful. How can we state
-such an argument? Fortunately, we don't have to start from scratch, we know that
-`MonadState` holds some laws that we could exploit for this purpose.
-
-Before we dive in, we're going to narrow the scope of the proof, to make things
-simpler. Instead of showing the whole correspondence, we'll simply show the
-following subproof of the forward function:
+Fortunately, we don't have to start from scratch to prove that our isomorphism
+is correct, we know that `MonadState` has some laws that we could exploit for
+this purpose. Prior to that, we're going to narrow the scope of the proof, to
+make things simpler. Instead of showing the whole correspondence, we'll simply
+show the following subproof of the forward function:
 
 ```Coq
 ∀ ms ∈ MSLens[S, A], putPut ms -> updateUpdate (ms_2_ln ms)
@@ -178,7 +176,6 @@ State[S, ?]]`) where `putPut` holds, then passing `ms` through `ms_2_ln` must
 return a lens where `updateUpdate` holds". Here it's the informal proof:
 
 ```Scala
-> [0. update(update(s)(a1))(a2) => update(s)(a2)]
   update(update(s)(a1))(a2)
 = [1. def update]
   execState(put(a2))(execState(put(a1))(s))
@@ -191,16 +188,16 @@ return a lens where `updateUpdate` holds". Here it's the informal proof:
 ◻
 ```
 
-We start in *0* with an hypothesis `update(update(s)(a1))(a2)` and a goal
+We start in with the hypothesis `update(update(s)(a1))(a2)`, being our goal
 `update(s)(a2)`. Given all the information in the context, that is `MonadState`
 laws and other information related to `State`, we should be able to reach that
-goal. The step *1* simply unfolds the definition of `update` that we provided in
+goal. Step *1* simply unfolds the definition of `update` that we provided in
 `ms_2_lens`. Now, in *2*, we assume a lemma *execexec is >>* (which we invite
 you to prove) which manifests that sequencing executions of different stateful
 programs is the same as the single execution of the sequence of those programs.
-This leads to the step *3* where we can apply *putPut* smoothly. Finally, we
-apply the definition of `update` again (step *4*), but this time in a reversed
-way, to reach our desired goal. Seems that we're done here!
+This leads to step *3* where we can apply *putPut* smoothly. Finally, we apply
+the definition of `update` again (step *4*), but this time in a reversed way, to
+reach our desired goal. Seems that we're done here!
 
 You can find the whole informal forward proof
 [here](LensStateIsYourFatherProof.md). Please, notice that this linked version
@@ -231,7 +228,7 @@ Definition update_update {S A : Type} (ln : lens S A) : Prop :=
 ```
 
 Now, we can read `update_update ln` as a proposition where we postulate that
-`ln` holds the law `update_update`.
+update_update` holds for `ln`.
 
 Being a functional language as it is, Coq also enables typeclass definitions.
 This is how we represent `MonadState`. I invite you to come back to the Scala
@@ -327,8 +324,8 @@ currently working on. In this library, we try to take optics (lens, optional,
 traversal, etc.) [beyond immutable data
 structures](https://skillsmatter.com/skillscasts/11214-llghtning-talk-optic-algebras-beyond-immutable-data-structures).
 Particularly, we want to take the algebra and design patterns from optics to
-more realistic settings, such as databases or microservices, since it's not
-practical to keep the whole state of a modern application in memory.
+more realistic settings, such as databases or microservices, since indeed it's
+not practical to keep the whole state of a modern application in memory.
 `MonadState`, distilling the algebraic essence of a lens, opens up these new
 possibilities, including, but not restricted to immutable data structures. In
 fact, we could say that `MonadState` is the father of many children, siblings of
@@ -357,6 +354,5 @@ we can prove our software, there's no need for additional tests. It's correct.
 Period. Proof assistants are still very academic and they're not necessarily
 focused on functional programming, but dependent type languages like Idris are
 starting to emerge and [they enable such
-capabilities](http://docs.idris-lang.org/en/latest/tutorial/theorems.html) as
-standard. And here's a new claim that I hope to "prove" in the future: they're
-here to stay!
+capabilities](http://docs.idris-lang.org/en/latest/tutorial/theorems.html). And
+here's a new claim that I hope to "prove" in the future: they're here to stay!
