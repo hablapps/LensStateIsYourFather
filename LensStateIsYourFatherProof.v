@@ -98,7 +98,7 @@ Definition execState {S A : Type} (st : state S A) (s : S) : S :=
 Instance Monad_state {S : Type} : Monad (state S) :=
 { ret := fun A a => mkState (fun s => (a, s))
 ; bind := fun A B m f => mkState (fun s0 => let (a, s1) := runState m s0
-                                                in runState (f a) s1)
+                                            in runState (f a) s1)
 }.
 
 Ltac reason :=
