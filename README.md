@@ -224,7 +224,7 @@ as parameter and returns a law (or *proposition*) over it:
 
 ```Coq
 Definition update_update {S A : Type} (ln : lens S A) : Prop :=
-  forall s a1 a2, update _ _ ln (update _ _ ln s a1) a2 = update _ _ ln s a2.
+  forall s a1 a2, update ln (update ln s a1) a2 = update ln s a2.
 ```
 
 Now, we can read `update_update ln` as a proposition where we postulate that
